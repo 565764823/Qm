@@ -51,6 +51,11 @@ inline constexpr float kJumpTime = 50.0f;
 }  
 
 
+struct PIDConfig {
+    float kp, ki, kd;
+    float iMax, iRange, errorTol, dTol, jumpTime;
+};
+
 namespace ChassisPID {
 
 #ifdef ROBOT_01
@@ -98,9 +103,19 @@ inline constexpr float kCurveIRange     = 50.0f;
 inline constexpr float kCurveErrorTol   = 5.0f;
 inline constexpr float kCurveDTol       = 10.0f;
 inline constexpr float kCurveJumpTime   = 150.0f;
-inline constexpr float kCurveOutputLimit = 70.0f;  
+inline constexpr float kCurveOutputLimit = 70.0f;
 
-}  
+inline constexpr PIDConfig kFwdConfig{kForwardKp, kForwardKi, kForwardKd,
+                                       kFwdIMax, kFwdIRange, kFwdErrorTol,
+                                       kFwdDTol, kFwdJumpTime};
+inline constexpr PIDConfig kRotConfig{kRotateKp, kRotateKi, kRotateKd,
+                                       kRotIMax, kRotIRange, kRotErrorTol,
+                                       kRotDTol, kRotJumpTime};
+inline constexpr PIDConfig kCurveConfig{kCurveKp, kCurveKi, kCurveKd,
+                                         kCurveIMax, kCurveIRange, kCurveErrorTol,
+                                         kCurveDTol, kCurveJumpTime};
+
+}
 
 namespace Motion {
 inline constexpr float kPosRemainingThreshold = 5.0f;   

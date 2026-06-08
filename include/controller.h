@@ -12,6 +12,7 @@ extern int joyA1, joyA2, joyA3, joyA4;
 extern bool btnL1, btnL2, btnR1, btnR2;
 extern bool btnX,  btnY,  btnA,  btnB;
 extern bool btnLeft, btnRight, btnUp, btnDown;
+
 extern bool lastL1, lastL2, lastR1, lastR2;
 extern bool lastX,  lastY,  lastA,  lastB;
 extern bool lastLeft, lastRight, lastUp, lastDown;

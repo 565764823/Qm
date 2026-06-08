@@ -16,12 +16,12 @@ inline float deg2rad(float deg) {
     return deg * static_cast<float>(M_PI) / 180.0f;
 }
 
-
 inline float normalizeAngle(float ang) {
     while (ang > 180.0f)  ang -= 360.0f;
     while (ang < -180.0f) ang += 360.0f;
     return ang;
 }
+
 inline float clamp(float val, float lo, float hi) {
     if (val < lo) return lo;
     if (val > hi) return hi;

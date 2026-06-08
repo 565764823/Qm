@@ -29,6 +29,11 @@ private:
 
 public:
     PID() { settleTimer.reset(); }
+    PID(const PIDConfig& cfg)
+        : kp(cfg.kp), ki(cfg.ki), kd(cfg.kd)
+        , IMax(cfg.iMax), IRange(cfg.iRange), errorTol(cfg.errorTol)
+        , DTol(cfg.dTol), jumpTime(cfg.jumpTime)
+    { settleTimer.reset(); }
 
     inline void setFirstTime() {
         firstTime = true;

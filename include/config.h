@@ -11,11 +11,6 @@
 
 #include "parameters.h"
 
-// ==========================================================================
-//  config.h  —  Hardware identity only (ports, gear ratios, extern objects)
-//               All tunable values live in parameters.h
-// ==========================================================================
-
 namespace Port {
 
 #ifdef ROBOT_01

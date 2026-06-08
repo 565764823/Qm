@@ -10,40 +10,10 @@ using namespace vex;
 
 namespace chassis {
 
-static PID fwdPID, rotPID, leftPID, rightPID;
-static bool pidReady = false;
-
-static void ensurePID() {
-    if (pidReady) return;
-    fwdPID.setCoefficient(ChassisPID::kForwardKp, ChassisPID::kForwardKi, ChassisPID::kForwardKd);
-    fwdPID.setIMax(ChassisPID::kFwdIMax);
-    fwdPID.setIRange(ChassisPID::kFwdIRange);
-    fwdPID.setErrorTolerance(ChassisPID::kFwdErrorTol);
-    fwdPID.setDTolerance(ChassisPID::kFwdDTol);
-    fwdPID.setJumpTime(ChassisPID::kFwdJumpTime);
-
-    rotPID.setCoefficient(ChassisPID::kRotateKp, ChassisPID::kRotateKi, ChassisPID::kRotateKd);
-    rotPID.setIMax(ChassisPID::kRotIMax);
-    rotPID.setIRange(ChassisPID::kRotIRange);
-    rotPID.setErrorTolerance(ChassisPID::kRotErrorTol);
-    rotPID.setDTolerance(ChassisPID::kRotDTol);
-    rotPID.setJumpTime(ChassisPID::kRotJumpTime);
-
-    leftPID.setCoefficient(ChassisPID::kCurveKp, ChassisPID::kCurveKi, ChassisPID::kCurveKd);
-    leftPID.setIMax(ChassisPID::kCurveIMax);
-    leftPID.setIRange(ChassisPID::kCurveIRange);
-    leftPID.setErrorTolerance(ChassisPID::kCurveErrorTol);
-    leftPID.setDTolerance(ChassisPID::kCurveDTol);
-    leftPID.setJumpTime(ChassisPID::kCurveJumpTime);
-
-    rightPID.setCoefficient(ChassisPID::kCurveKp, ChassisPID::kCurveKi, ChassisPID::kCurveKd);
-    rightPID.setIMax(ChassisPID::kCurveIMax);
-    rightPID.setIRange(ChassisPID::kCurveIRange);
-    rightPID.setErrorTolerance(ChassisPID::kCurveErrorTol);
-    rightPID.setDTolerance(ChassisPID::kCurveDTol);
-    rightPID.setJumpTime(ChassisPID::kCurveJumpTime);
-    pidReady = true;
-}
+static PID fwdPID(ChassisPID::kFwdConfig);
+static PID rotPID(ChassisPID::kRotConfig);
+static PID leftPID(ChassisPID::kCurveConfig);
+static PID rightPID(ChassisPID::kCurveConfig);
 
 
 void spinFL(float power)   { Motor_FL.spin(fwd, power, pct); }
@@ -235,7 +205,6 @@ void angleRotateAbs(float power, float target) {
 
 
 void pidForwardAbs(float target, float errorTolerance) {
-    ensurePID();
     resetForwardPos();
     fwdPID.setTarget(target);
     fwdPID.setErrorTolerance(errorTolerance);
@@ -249,7 +218,6 @@ void pidForwardAbs(float target, float errorTolerance) {
 }
 
 void pidRotateAbs(float target, float errorTolerance) {
-    ensurePID();
     rotPID.setTarget(target);
     rotPID.setErrorTolerance(errorTolerance);
     rotPID.setFirstTime();
@@ -280,7 +248,6 @@ void posCurve(float leftPwr, float rightPwr, float target, bool mirror) {
 }
 
 void PIDPosCurveAbs(float leftTarget, float rightTarget, float tolerance) {
-    ensurePID();
     resetForwardPos();
     leftPID.setTarget(leftTarget);
     leftPID.setErrorTolerance(tolerance);
