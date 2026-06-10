@@ -115,6 +115,53 @@ inline constexpr PIDConfig kCurveConfig{kCurveKp, kCurveKi, kCurveKd,
                                          kCurveIMax, kCurveIRange, kCurveErrorTol,
                                          kCurveDTol, kCurveJumpTime};
 
+}  // namespace ChassisPID
+
+namespace AutoPID {
+
+inline constexpr float kFwdKp = 0.30f;
+inline constexpr float kFwdKi = 0.05f;
+inline constexpr float kFwdKd = 3.25f;
+
+inline constexpr float kFwdIMax     = 30.0f;
+inline constexpr float kFwdIRange   = 50.0f;
+inline constexpr float kFwdErrorTol = 5.0f;
+inline constexpr float kFwdDTol     = 10.0f;
+inline constexpr float kFwdJumpTime = 150.0f;
+
+inline constexpr float kRotKp = 1.20f;
+inline constexpr float kRotKi = 0.20f;
+inline constexpr float kRotKd = 12.0f;
+
+inline constexpr float kRotIMax     = 20.0f;
+inline constexpr float kRotIRange   = 30.0f;
+inline constexpr float kRotErrorTol = 2.0f;
+inline constexpr float kRotDTol     = 5.0f;
+inline constexpr float kRotJumpTime = 150.0f;
+
+inline constexpr float kCurveKp = kFwdKp;
+inline constexpr float kCurveKi = kFwdKi;
+inline constexpr float kCurveKd = kFwdKd;
+
+inline constexpr float kCurveIMax     = 30.0f;
+inline constexpr float kCurveIRange   = 50.0f;
+inline constexpr float kCurveErrorTol = 5.0f;
+inline constexpr float kCurveDTol     = 10.0f;
+inline constexpr float kCurveJumpTime = 150.0f;
+
+inline constexpr PIDConfig kFwd{kFwdKp, kFwdKi, kFwdKd,
+                                kFwdIMax, kFwdIRange, kFwdErrorTol,
+                                kFwdDTol, kFwdJumpTime};
+inline constexpr PIDConfig kRot{kRotKp, kRotKi, kRotKd,
+                                kRotIMax, kRotIRange, kRotErrorTol,
+                                kRotDTol, kRotJumpTime};
+inline constexpr PIDConfig kCurve{kCurveKp, kCurveKi, kCurveKd,
+                                  kCurveIMax, kCurveIRange, kCurveErrorTol,
+                                  kCurveDTol, kCurveJumpTime};
+
+inline constexpr PIDConfig kFwdSlow{0.20f, 0.03f, 2.00f, 30, 50, 5, 10, 150};
+inline constexpr PIDConfig kFwdFast{0.50f, 0.08f, 5.00f, 30, 50, 5, 10, 150};
+
 }
 
 namespace Motion {

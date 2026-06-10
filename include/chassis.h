@@ -44,10 +44,13 @@ void posForwardAbs(float power, float target,
 void angleRotateAbs(float power, float target);
 
 void pidForwardAbs(float target, float errorTolerance = 2.0f);
+void pidForwardAbs(float target, float kp, float ki, float kd, float errorTolerance = 2.0f);
 void pidRotateAbs(float target, float errorTolerance = 2.0f);
+void pidRotateAbs(float target, float kp, float ki, float kd, float errorTolerance = 2.0f);
 
 void posCurve(float leftPwr, float rightPwr, float target, bool mirror = true);
 void PIDPosCurveAbs(float leftTarget, float rightTarget, float tolerance = 2.0f);
+void PIDPosCurveAbs(float leftTarget, float rightTarget, float kp, float ki, float kd, float tolerance = 2.0f);
 
 void driveWithHeading(float power, float targetHeading);
 

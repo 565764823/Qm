@@ -3,6 +3,7 @@
 #include "sensors.h"
 #include "pid.h"
 #include "math-utils.h"
+#include "autonomous.h"
 #include <algorithm>
 #include <thread>
 
@@ -210,6 +211,7 @@ void pidForwardAbs(float target, float errorTolerance) {
     fwdPID.setErrorTolerance(errorTolerance);
     fwdPID.setFirstTime();
     while (!fwdPID.targetArrived()) {
+        if (!auto_is_active()) { brakeAll(); return; }
         fwdPID.update(getForwardPos());
         float out = math::clampSym(fwdPID.getOutput(), ChassisPID::kFwdOutputLimit);
         moveForward(out);
@@ -217,11 +219,17 @@ void pidForwardAbs(float target, float errorTolerance) {
     }
 }
 
+void pidForwardAbs(float target, float kp, float ki, float kd, float errorTolerance) {
+    fwdPID.setCoefficient(kp, ki, kd);
+    pidForwardAbs(target, errorTolerance);
+}
+
 void pidRotateAbs(float target, float errorTolerance) {
     rotPID.setTarget(target);
     rotPID.setErrorTolerance(errorTolerance);
     rotPID.setFirstTime();
     while (!rotPID.targetArrived()) {
+        if (!auto_is_active()) { brakeAll(); return; }
         float input = getHeading();
         float error = math::normalizeAngle(target - input);
         float fakeInput = target - error;
@@ -230,6 +238,11 @@ void pidRotateAbs(float target, float errorTolerance) {
         moveRotate(out);
         this_thread::sleep_for(Timing::kUserLoopInterval);
     }
+}
+
+void pidRotateAbs(float target, float kp, float ki, float kd, float errorTolerance) {
+    rotPID.setCoefficient(kp, ki, kd);
+    pidRotateAbs(target, errorTolerance);
 }
 
 void posCurve(float leftPwr, float rightPwr, float target, bool mirror) {
@@ -256,6 +269,7 @@ void PIDPosCurveAbs(float leftTarget, float rightTarget, float tolerance) {
     rightPID.setErrorTolerance(tolerance);
     rightPID.setFirstTime();
     while (!leftPID.targetArrived() || !rightPID.targetArrived()) {
+        if (!auto_is_active()) { brakeAll(); return; }
         leftPID.update(getLeftPos());
         rightPID.update(getRightPos());
         float lOut = math::clampSym(leftPID.getOutput(), ChassisPID::kCurveOutputLimit);
@@ -264,6 +278,12 @@ void PIDPosCurveAbs(float leftTarget, float rightTarget, float tolerance) {
         moveRight(rOut);
         this_thread::sleep_for(Timing::kUserLoopInterval);
     }
+}
+
+void PIDPosCurveAbs(float leftTarget, float rightTarget, float kp, float ki, float kd, float tolerance) {
+    leftPID.setCoefficient(kp, ki, kd);
+    rightPID.setCoefficient(kp, ki, kd);
+    PIDPosCurveAbs(leftTarget, rightTarget, tolerance);
 }
 
 

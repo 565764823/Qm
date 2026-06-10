@@ -3,6 +3,8 @@
 #include "sensors.h"
 #include "odometry.h"
 #include "parameters.h"
+#include "autonomous.h"
+#include "controller.h"
 #include <cstdlib>
 #include <thread>
 
@@ -75,7 +77,17 @@ void usercontrol(void) {
     static bool   imuDriftWarn      = false;
     static int    imuDriftCountdown = 0;
 
-    while (true) {
+    bool running   = true;
+    bool lastA_man = false;
+
+    while (running) {
+        bool currA = Controller.ButtonA.pressing();
+        if (currA && !lastA_man) {
+            chassis::brakeAll();
+            running = false;
+            continue;
+        }
+        lastA_man = currA;
 
         int joyA3 = Controller.Axis3.position();
         int joyA1 = Controller.Axis1.position();
@@ -156,6 +168,9 @@ void usercontrol(void) {
                 Brain.Screen.print("THERMAL: WARM");
             else
                 Brain.Screen.print("THERMAL: OK");
+
+            Brain.Screen.setCursor(9, 1);
+            Brain.Screen.print("A:切换自动              ");
         }
 
         this_thread::sleep_for(Timing::kUserLoopInterval);
@@ -167,9 +182,41 @@ int main() {
     odometry::init(0.0f, 0.0f);
     thread odomThread(odometry::updateLoop);
 
-    usercontrol();
-
     while (true) {
-        wait(100, msec);
+
+        Brain.Screen.clearScreen();
+        Brain.Screen.setFont(mono20);
+        Brain.Screen.setCursor(3, 1);
+        Brain.Screen.print("  AUTO: 等待选择...");
+        Brain.Screen.setCursor(5, 1);
+        Brain.Screen.print("  ← → 切换  A 启动  B 手动");
+
+        bool auto_done = false;
+        while (!auto_done) {
+            defineController();
+
+            if (btnRight && !lastRight)  auto_cycle();
+            if (btnLeft  && !lastLeft)   auto_cycle();
+
+            Brain.Screen.setCursor(7, 1);
+            Brain.Screen.print("  当前路线: %d", auton_strategy);
+
+            if (btnB && !lastB) { auto_done = true; }
+            if (btnA && !lastA) {
+                Brain.Screen.clearScreen();
+                Brain.Screen.setCursor(3, 1);
+                Brain.Screen.print("  AUTO RUNNING...");
+                Brain.Screen.setCursor(5, 1);
+                Brain.Screen.print("  B: 中断 → 手动");
+                auto_run();
+                auto_done = true;
+            }
+
+            this_thread::sleep_for(10);
+        }
+
+       
+        usercontrol();
+      
     }
 }

@@ -40,11 +40,11 @@ namespace Port {
 
 #endif
 
-}  // namespace Port
+} 
 
 namespace Gear {
   inline const vex::gearSetting kDrive = vex::ratio18_1;
-}  // namespace Gear
+}  
 
 
 extern vex::brain       Brain;
