@@ -38,10 +38,14 @@ public:
     inline void setFirstTime() {
         firstTime = true;
         arrived   = false;
+        settleTimer.reset();
     }
     inline void setCoefficient(float _kp, float _ki, float _kd) {
         kp = _kp;  ki = _ki;  kd = _kd;
     }
+    inline float getKp() const { return kp; }
+    inline float getKi() const { return ki; }
+    inline float getKd() const { return kd; }
 
     inline void setTarget(float _target)           { target = _target; }
     inline void setIMax(float _IMax)                { IMax = _IMax; }

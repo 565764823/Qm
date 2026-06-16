@@ -5,6 +5,7 @@
 #include "parameters.h"
 #include "autonomous.h"
 #include "controller.h"
+#include "adjustment.h"
 #include <cstdlib>
 #include <thread>
 
@@ -24,6 +25,8 @@ rotation Odometer[2] = {
     rotation(Port::kOdomX, true),
     rotation(Port::kOdomY, false)
 };
+
+competition Competition;
 
 void initRobot() {
     Brain.Screen.clearScreen();
@@ -70,6 +73,18 @@ void emergencyStop() {
     Brain.Screen.setCursor(5, 1);
     Brain.Screen.print("  STOP");
 }
+
+void usercontrol(void);  
+
+void competitionAuton(void) {
+    odometry::setPositionMm(0, 0);
+    auto_run();
+}
+
+void competitionDriver(void) {
+    usercontrol();
+}
+
 void usercontrol(void) {
     Brain.Screen.clearScreen();
 
@@ -77,20 +92,28 @@ void usercontrol(void) {
     static bool   imuDriftWarn      = false;
     static int    imuDriftCountdown = 0;
 
-    bool running   = true;
-    bool lastA_man = false;
+    bool running = true;
 
     while (running) {
-        bool currA = Controller.ButtonA.pressing();
-        if (currA && !lastA_man) {
+        defineController();
+
+        if (btnA && !lastA) {
             chassis::brakeAll();
             running = false;
             continue;
         }
-        lastA_man = currA;
 
-        int joyA3 = Controller.Axis3.position();
-        int joyA1 = Controller.Axis1.position();
+        if (btnX && !lastX) {
+            chassis::brakeAll();
+            tuningForward();
+            Brain.Screen.clearScreen();
+        }
+
+        if (btnY && !lastY) {
+            chassis::brakeAll();
+            tuningRotate();
+            Brain.Screen.clearScreen();
+        }
 
         int fwd  = (std::abs(joyA3) < Ctrl::kJoystickDeadzone) ? 0 : joyA3;
         int turn = (std::abs(joyA1) < Ctrl::kJoystickDeadzone) ? 0 : joyA1;
@@ -118,36 +141,54 @@ void usercontrol(void) {
             Brain.Screen.print("=== DASHBOARD ===");
 
             Brain.Screen.setCursor(2, 1);
-            Brain.Screen.print("ODO RAW X:%7.0f  Y:%7.0f deg",
-                               odometry::rawX(), odometry::rawY());
-
-            Brain.Screen.setCursor(3, 1);
-            Brain.Screen.print("POS: %+8.0fmm  HDG: %+6.1f%c",
+            Brain.Screen.print("POS %+8.0fmm  HDG %+6.1f%c",
                                chassis::getForwardPos(), curHeading, 0xB0);
 
-            Brain.Screen.setCursor(4, 1);
-            Brain.Screen.print("X:%+7.2f  Y:%+7.2f in",
+            Brain.Screen.setCursor(3, 1);
+            Brain.Screen.print("ODO  %+6.2f  %+6.2f in",
                                odometry::globalX(), odometry::globalY());
 
+            Brain.Screen.setCursor(4, 1);
+            Brain.Screen.print("ROB  %+6.2f  %+6.2f in  %-6s",
+                               odometry::robotGlobalX(), odometry::robotGlobalY(),
+                               odometry::isStuck() ? "STUCK!" : "OK");
+
             Brain.Screen.setCursor(5, 1);
-            Brain.Screen.print("PWR F:%+4d  T:%+4d  TEMP:%4.0fC",
-                               fwd, turn, temp);
+            Brain.Screen.print("--- DRIVE ---");
 
             Brain.Screen.setCursor(6, 1);
-            Brain.Screen.print("BATT:%3d%%  IMU: ",
+            Brain.Screen.print("PWR F:%+4d  T:%+4d  MAX %3.0fC",
+                               fwd, turn, temp);
+
+            const char* thermalStatus;
+            if (temp > Thermal::kShutdown)      thermalStatus = "STOP!";
+            else if (temp > Thermal::kThrottle) thermalStatus = "HOT";
+            else if (temp > Thermal::kWarning)  thermalStatus = "WARM";
+            else                                thermalStatus = "OK";
+            Brain.Screen.print(" %-5s", thermalStatus);
+
+            Brain.Screen.setCursor(7, 1);
+            Brain.Screen.print("FL:%3.0f FR:%3.0f BL:%3.0f BR:%3.0f",
+                               Motor_FL.temperature(celsius),
+                               Motor_FR.temperature(celsius),
+                               Motor_BL.temperature(celsius),
+                               Motor_BR.temperature(celsius));
+
+            Brain.Screen.setCursor(8, 1);
+            Brain.Screen.print("BATT %3d%%  IMU ",
                                Brain.Battery.capacity());
 
             if (IMU.isCalibrating())
-                Brain.Screen.print("CALIB...");
+                Brain.Screen.print("%-8s", "CALIB...");
             else if (imuDriftWarn)
-                Brain.Screen.print("DRIFT!");
+                Brain.Screen.print("%-8s", "DRIFT!");
             else
-                Brain.Screen.print("OK   ");
+                Brain.Screen.print("%-8s", "OK");
 
             if (fwd == 0 && turn == 0) {
                 float drift = fabs(curHeading - lastImuHeading);
                 if (drift > kIMUDriftThreshold * Dashboard::kRefreshTicks) {
-                    imuDriftCountdown = Dashboard::kDriftLatchCountdown;   /* latch warning for ~0.5 s */
+                    imuDriftCountdown = Dashboard::kDriftLatchCountdown;
                     imuDriftWarn = true;
                 }
             } else {
@@ -159,18 +200,8 @@ void usercontrol(void) {
             }
             lastImuHeading = curHeading;
 
-            Brain.Screen.setCursor(8, 1);
-            if (temp > Thermal::kShutdown)
-                Brain.Screen.print("THERMAL: SHUTDOWN!");
-            else if (temp > Thermal::kThrottle)
-                Brain.Screen.print("THERMAL: THROTTLED");
-            else if (temp > Thermal::kWarning)
-                Brain.Screen.print("THERMAL: WARM");
-            else
-                Brain.Screen.print("THERMAL: OK");
-
-            Brain.Screen.setCursor(9, 1);
-            Brain.Screen.print("A:切换自动              ");
+            Brain.Screen.setCursor(11, 1);
+            Brain.Screen.print("[A]退出  [X]前进PID  [Y]旋转PID");
         }
 
         this_thread::sleep_for(Timing::kUserLoopInterval);
@@ -182,6 +213,9 @@ int main() {
     odometry::init(0.0f, 0.0f);
     thread odomThread(odometry::updateLoop);
 
+    Competition.autonomous(competitionAuton);
+    Competition.drivercontrol(competitionDriver);
+
     while (true) {
 
         Brain.Screen.clearScreen();
@@ -192,6 +226,7 @@ int main() {
         Brain.Screen.print("  ← → 切换  A 启动  B 手动");
 
         bool auto_done = false;
+        static int imuCheckTick = 0;
         while (!auto_done) {
             defineController();
 
@@ -199,7 +234,12 @@ int main() {
             if (btnLeft  && !lastLeft)   auto_cycle();
 
             Brain.Screen.setCursor(7, 1);
-            Brain.Screen.print("  当前路线: %d", auton_strategy);
+            Brain.Screen.print("  路线[%d]: %s", auton_strategy, auto_name());
+
+            if (++imuCheckTick >= Dashboard::kIMUInspectIntervalTicks) {
+                imuCheckTick = 0;
+                imu_inspection(getHeading());
+            }
 
             if (btnB && !lastB) { auto_done = true; }
             if (btnA && !lastA) {
@@ -212,10 +252,9 @@ int main() {
                 auto_done = true;
             }
 
-            this_thread::sleep_for(10);
+            this_thread::sleep_for(Timing::kUserLoopInterval);
         }
 
-       
         usercontrol();
       
     }

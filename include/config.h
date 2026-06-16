@@ -14,7 +14,6 @@
 namespace Port {
 
 #ifdef ROBOT_01
-
   inline constexpr int32_t kDriveAuxL = 0;
   inline constexpr int32_t kDriveFL    = 1;
   inline constexpr int32_t kDriveFR    = 6;

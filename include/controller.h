@@ -18,4 +18,4 @@ extern bool lastX,  lastY,  lastA,  lastB;
 extern bool lastLeft, lastRight, lastUp, lastDown;
 void defineController();
 
-#endif  // CONTROLLER_H_
+#endif  

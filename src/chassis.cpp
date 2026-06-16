@@ -4,7 +4,10 @@
 #include "pid.h"
 #include "math-utils.h"
 #include "autonomous.h"
+#include "odometry.h"
 #include <algorithm>
+#include <cmath>
+#include <cstring>
 #include <thread>
 
 using namespace vex;
@@ -23,6 +26,13 @@ void spinBL(float power)   { Motor_BL.spin(fwd, power, pct); }
 void spinBR(float power)   { Motor_BR.spin(fwd, power, pct); }
 void spinAuxL(float power) { Motor_AuxL.spin(fwd, power, pct); }
 void spinAuxR(float power) { Motor_AuxR.spin(fwd, power, pct); }
+
+void spinFLVel(float pct)   { Motor_FL.spin(fwd, pct, velocityUnits::pct); }
+void spinFRVel(float pct)   { Motor_FR.spin(fwd, pct, velocityUnits::pct); }
+void spinBLVel(float pct)   { Motor_BL.spin(fwd, pct, velocityUnits::pct); }
+void spinBRVel(float pct)   { Motor_BR.spin(fwd, pct, velocityUnits::pct); }
+void spinAuxLVel(float pct) { Motor_AuxL.spin(fwd, pct, velocityUnits::pct); }
+void spinAuxRVel(float pct) { Motor_AuxR.spin(fwd, pct, velocityUnits::pct); }
 
 
 
@@ -44,6 +54,24 @@ void moveRotate(float power) {
     spinBL(power);    spinBR(-power); spinAuxR(-power);
 }
 
+void moveLeftVel(float pct) {
+    spinAuxLVel(pct); spinFLVel(pct); spinBLVel(pct);
+}
+
+void moveRightVel(float pct) {
+    spinFRVel(pct); spinBRVel(pct); spinAuxRVel(pct);
+}
+
+void moveForwardVel(float pct) {
+    spinAuxLVel(pct); spinFLVel(pct); spinFRVel(pct);
+    spinBLVel(pct);  spinBRVel(pct); spinAuxRVel(pct);
+}
+
+void moveRotateVel(float pct) {
+    spinAuxLVel(pct);  spinFLVel(pct);  spinFRVel(-pct);
+    spinBLVel(pct);    spinBRVel(-pct); spinAuxRVel(-pct);
+}
+
 
 void brakeAll() {
     Motor_AuxL.stop(brake); Motor_FL.stop(brake); Motor_FR.stop(brake);
@@ -60,10 +88,7 @@ void lockBase() {
     Motor_BL.stop(hold);  Motor_BR.stop(hold); Motor_AuxR.stop(hold);
 }
 
-void unlockBase() {
-    Motor_AuxL.stop(coast); Motor_FL.stop(coast); Motor_FR.stop(coast);
-    Motor_BL.stop(coast);  Motor_BR.stop(coast); Motor_AuxR.stop(coast);
-}
+void unlockBase() { coastAll(); }
 
 void lockLeft() {
     Motor_AuxL.stop(hold); Motor_FL.stop(hold); Motor_BL.stop(hold);
@@ -120,6 +145,21 @@ float getLeftPos() {
 float getRightPos() {
     return (Motor_FR.position(deg) + Motor_BR.position(deg) +
             Motor_AuxR.position(deg)) / 3.0f;
+}
+
+float getForwardVel() {
+    return (Motor_FL.velocity(pct) + Motor_FR.velocity(pct) +
+            Motor_BL.velocity(pct) + Motor_BR.velocity(pct)) / 4.0f;
+}
+
+float getLeftVel() {
+    return (Motor_AuxL.velocity(pct) + Motor_FL.velocity(pct) +
+            Motor_BL.velocity(pct)) / 3.0f;
+}
+
+float getRightVel() {
+    return (Motor_FR.velocity(pct) + Motor_BR.velocity(pct) +
+            Motor_AuxR.velocity(pct)) / 3.0f;
 }
 
 void resetForwardPos() {
@@ -191,6 +231,10 @@ void posForwardAbs(float power, float target, float targetHeading) {
     }
 }
 
+void posForwardRel(float power, float target, float targetHeading) {
+    posForwardAbs(power, getForwardPos() + target, targetHeading);
+}
+
 void angleRotateAbs(float power, float target) {
     float error = math::normalizeAngle(target - getHeading());
     int dir = (error > 0) ? 1 : -1;
@@ -204,6 +248,10 @@ void angleRotateAbs(float power, float target) {
     }
 }
 
+
+void pidForwardRel(float target, float errorTolerance) {
+    pidForwardAbs(getForwardPos() + target, errorTolerance);
+}
 
 void pidForwardAbs(float target, float errorTolerance) {
     resetForwardPos();
@@ -220,8 +268,14 @@ void pidForwardAbs(float target, float errorTolerance) {
 }
 
 void pidForwardAbs(float target, float kp, float ki, float kd, float errorTolerance) {
+    float oldKp = fwdPID.getKp(), oldKi = fwdPID.getKi(), oldKd = fwdPID.getKd();
     fwdPID.setCoefficient(kp, ki, kd);
     pidForwardAbs(target, errorTolerance);
+    fwdPID.setCoefficient(oldKp, oldKi, oldKd);
+}
+
+void pidRotateRel(float target, float errorTolerance) {
+    pidRotateAbs(getHeading() + target, errorTolerance);
 }
 
 void pidRotateAbs(float target, float errorTolerance) {
@@ -241,8 +295,10 @@ void pidRotateAbs(float target, float errorTolerance) {
 }
 
 void pidRotateAbs(float target, float kp, float ki, float kd, float errorTolerance) {
+    float oldKp = rotPID.getKp(), oldKi = rotPID.getKi(), oldKd = rotPID.getKd();
     rotPID.setCoefficient(kp, ki, kd);
     pidRotateAbs(target, errorTolerance);
+    rotPID.setCoefficient(oldKp, oldKi, oldKd);
 }
 
 void posCurve(float leftPwr, float rightPwr, float target, bool mirror) {
@@ -281,9 +337,13 @@ void PIDPosCurveAbs(float leftTarget, float rightTarget, float tolerance) {
 }
 
 void PIDPosCurveAbs(float leftTarget, float rightTarget, float kp, float ki, float kd, float tolerance) {
+    float oldLp = leftPID.getKp(), oldLi = leftPID.getKi(), oldLd = leftPID.getKd();
+    float oldRp = rightPID.getKp(), oldRi = rightPID.getKi(), oldRd = rightPID.getKd();
     leftPID.setCoefficient(kp, ki, kd);
     rightPID.setCoefficient(kp, ki, kd);
     PIDPosCurveAbs(leftTarget, rightTarget, tolerance);
+    leftPID.setCoefficient(oldLp, oldLi, oldLd);
+    rightPID.setCoefficient(oldRp, oldRi, oldRd);
 }
 
 
@@ -294,6 +354,54 @@ void driveWithHeading(float power, float targetHeading) {
     int fwd = static_cast<int>(power);
     int turn = static_cast<int>(correction);
     arcadeDrive(fwd, turn);
+}
+
+
+float gpsCalTheta(float dx, float dy, int direct) {
+    float theta = math::rad2deg(atan2f(dy, dx));
+    if (direct == 1) return theta;
+    else              return math::normalizeAngle(theta + 180.0f);
+}
+
+void gpsCalTargetPara(float xTarget, float yTarget, int direct,
+                      float &outHeading, float &outDistance) {
+    float xDelta = xTarget - odometry::robotGlobalXMm();
+    float yDelta = yTarget - odometry::robotGlobalYMm();
+    outHeading  = gpsCalTheta(xDelta, yDelta, direct) + GPS::kHeadingOffset;
+    outDistance = sqrtf(xDelta * xDelta + yDelta * yDelta);
+}
+
+void gpsMove(float xTarget, float yTarget, int direct,
+             float maxPower, const char* mode) {
+    float targetHeading, targetDistance;
+    gpsCalTargetPara(xTarget, yTarget, direct, targetHeading, targetDistance);
+
+    if (std::strcmp(mode, "continue") != 0) {
+        pidRotateAbs(targetHeading, GPS::kAimTolerance);
+    }
+
+    resetForwardPos();
+
+
+    float curVel = getForwardVel();
+    int rampMs = static_cast<int>(fabs(maxPower * direct - curVel)) * GPS::kSoftStartMsPerPower;
+    if (rampMs < Chassis::kVelSoftStartMinMs) rampMs = Chassis::kVelSoftStartMinMs;
+    softStartTimerForward(curVel, maxPower * direct, rampMs);
+
+    if (std::strcmp(mode, "heading") == 0) {
+        posForwardAbs(maxPower, targetDistance * direct);
+    } else {
+        float openLoopDist = targetDistance * GPS::kApproachRatio;
+        posForwardAbs(maxPower, openLoopDist * direct);
+        pidForwardAbs(targetDistance * direct, GPS::kAimTolerance);
+    }
+}
+
+void gpsAim(float xTarget, float yTarget, int direct, float headingOffset) {
+    float targetHeading, ignoreD;
+    gpsCalTargetPara(xTarget, yTarget, direct, targetHeading, ignoreD);
+    (void)ignoreD;
+    pidRotateAbs(targetHeading + headingOffset, GPS::kAimTolerance);
 }
 
 }

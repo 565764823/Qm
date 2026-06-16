@@ -15,7 +15,9 @@ void auto_resetPID();
 
 void auto_run();
 int  auto_cycle();
+const char* auto_name();
 
+void auto_notify_start();
 bool auto_is_active();
 
 #endif
