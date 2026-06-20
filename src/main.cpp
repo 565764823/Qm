@@ -15,10 +15,10 @@ controller  Controller = controller(primary);
 
 motor Motor_AuxL = motor(Port::kDriveAuxL, Gear::kDrive, false);
 motor Motor_FL   = motor(Port::kDriveFL,   Gear::kDrive, true);
-motor Motor_FR   = motor(Port::kDriveFR,   Gear::kDrive, false);
-motor Motor_BL   = motor(Port::kDriveBL,   Gear::kDrive, false);
+motor Motor_FR   = motor(Port::kDriveFR,   Gear::kDrive, true);
+motor Motor_BL   = motor(Port::kDriveBL,   Gear::kDrive, true);
 motor Motor_BR   = motor(Port::kDriveBR,   Gear::kDrive, true);
-motor Motor_AuxR = motor(Port::kDriveAuxR, Gear::kDrive, true);
+motor Motor_AuxR = motor(Port::kDriveAuxR, Gear::kDrive, false);
 
 inertial IMU = inertial(Port::kIMU);
 rotation Odometer[2] = {
@@ -48,6 +48,7 @@ void initRobot() {
     while (IMU.isCalibrating()) {
         this_thread::sleep_for(Timing::kIMUCalibPollInterval);
     }
+    IMU.setRotation(0, degrees);
     Brain.Screen.setCursor(6, 1);
     Brain.Screen.print("  IMU Ready!          ");
 
@@ -115,8 +116,8 @@ void usercontrol(void) {
             Brain.Screen.clearScreen();
         }
 
-        int fwd  = (std::abs(joyA3) < Ctrl::kJoystickDeadzone) ? 0 : joyA3;
-        int turn = (std::abs(joyA1) < Ctrl::kJoystickDeadzone) ? 0 : joyA1;
+        int fwd  = (std::abs(joyA1) < Ctrl::kJoystickDeadzone) ? 0 : joyA1;
+        int turn = (std::abs(joyA3) < Ctrl::kJoystickDeadzone) ? 0 : joyA3;
 
         float temp = chassis::getMaxDriveTemp();
         float tempScale = static_cast<float>(Thermal::powerScale(temp));
@@ -124,7 +125,7 @@ void usercontrol(void) {
         turn = static_cast<int>(turn * tempScale);
         turn = static_cast<int>(turn * Ctrl::kTurnSensitivity);
         fwd  = static_cast<int>(fwd  * Ctrl::kSpeedSensitivity);
-        chassis::arcadeDrive(fwd, turn);
+        chassis::arcadeDrive(turn, fwd);  // arcadeDrive(旋转, 前进)
 
         if (temp >= Thermal::kWarning) {
             Controller.rumble(". . . .");
@@ -178,12 +179,19 @@ void usercontrol(void) {
             Brain.Screen.print("BATT %3d%%  IMU ",
                                Brain.Battery.capacity());
 
-            if (IMU.isCalibrating())
+            if (!IMU.installed())
+                Brain.Screen.print("%-8s", "NONE");
+            else if (IMU.isCalibrating())
                 Brain.Screen.print("%-8s", "CALIB...");
             else if (imuDriftWarn)
                 Brain.Screen.print("%-8s", "DRIFT!");
             else
                 Brain.Screen.print("%-8s", "OK");
+
+            Brain.Screen.setCursor(9, 1);
+            Brain.Screen.print("IMU raw:%7.1f  cal:%6.1f%c",
+                               IMU.rotation(),
+                               IMU.rotation() / kIMUScale * kIMUHeadingConversion, 0xB0);
 
             if (fwd == 0 && turn == 0) {
                 float drift = fabs(curHeading - lastImuHeading);

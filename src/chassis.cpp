@@ -258,11 +258,13 @@ void pidForwardAbs(float target, float errorTolerance) {
     fwdPID.setTarget(target);
     fwdPID.setErrorTolerance(errorTolerance);
     fwdPID.setFirstTime();
+    float startHdg = getHeading();
     while (!fwdPID.targetArrived()) {
         if (!auto_is_active()) { brakeAll(); return; }
         fwdPID.update(getForwardPos());
-        float out = math::clampSym(fwdPID.getOutput(), ChassisPID::kFwdOutputLimit);
-        moveForward(out);
+        int fwd = static_cast<int>(math::clampSym(fwdPID.getOutput(), ChassisPID::kFwdOutputLimit));
+        int turn = static_cast<int>((getHeading() - startHdg) * 3.0f);
+        arcadeDrive(turn, -fwd);  // arcadeDrive(旋转, 前进)
         this_thread::sleep_for(Timing::kUserLoopInterval);
     }
 }
@@ -288,8 +290,8 @@ void pidRotateAbs(float target, float errorTolerance) {
         float error = math::normalizeAngle(target - input);
         float fakeInput = target - error;
         rotPID.update(fakeInput);
-        float out = math::clampSym(rotPID.getOutput(), ChassisPID::kRotOutputLimit);
-        moveRotate(out);
+        int rot = static_cast<int>(math::clampSym(rotPID.getOutput(), ChassisPID::kRotOutputLimit));
+        arcadeDrive(-rot, 0);  // arcadeDrive(旋转, 前进)
         this_thread::sleep_for(Timing::kUserLoopInterval);
     }
 }
